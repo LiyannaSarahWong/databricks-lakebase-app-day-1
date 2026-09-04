@@ -175,6 +175,28 @@
       color: #a0aec0;
       font-style: italic;
     }
+    
+    .delete-btn {
+      background: #fc8181;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      margin: 0;
+    }
+    
+    .delete-btn:hover {
+      background: #f56565;
+      transform: scale(1.05);
+    }
+    
+    .delete-btn:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body>
@@ -197,6 +219,7 @@
         <th>Email</th>
         <th>Latest price</th>
         <th>Updated</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody id="watchlist-body"></tbody>
@@ -222,7 +245,7 @@
             ? Number(row.latest_price).toFixed(2)
             : "-";
           const updated = row.updated_at ? new Date(row.updated_at).toLocaleString() : "-";
-          tr.innerHTML = `<td>${row.symbol}</td><td>${row.email || "-"}</td><td>${price}</td><td>${updated}</td>`;
+          tr.innerHTML = `<td>${row.symbol}</td><td>${row.email || "-"}</td><td>$${price}</td><td>${updated}</td><td><button class="delete-btn" data-symbol="${row.symbol}">Delete</button></td>`;
           watchlistBody.appendChild(tr);
         });
       } catch (err) {
