@@ -12,7 +12,7 @@ import getpass
 
 w = WorkspaceClient()
 
-w.secrets.create_scope(scope="massive")
+# w.secrets.create_scope(scope="massive")
 w.secrets.put_secret(
     scope="massive",
     key="api-key",
