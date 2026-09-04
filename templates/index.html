@@ -197,6 +197,140 @@
     .delete-btn:active {
       transform: scale(0.98);
     }
+    
+    .news-btn {
+      background: #48bb78;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      margin: 0 4px 0 0;
+    }
+    
+    .news-btn:hover {
+      background: #38a169;
+      transform: scale(1.05);
+    }
+    
+    .news-btn:active {
+      transform: scale(0.98);
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    }
+    
+    .modal.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .modal-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0;
+    }
+    
+    .close-btn {
+      background: #e2e8f0;
+      color: #2d3748;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      transition: all 0.2s ease;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .close-btn:hover {
+      background: #cbd5e0;
+      transform: rotate(90deg);
+    }
+    
+    .news-item {
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #f7fafc;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .news-item h3 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a202c;
+    }
+    
+    .news-item p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #4a5568;
+    }
+    
+    .news-meta {
+      font-size: 12px;
+      color: #718096;
+      margin-bottom: 8px;
+    }
+    
+    .news-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .news-link:hover {
+      text-decoration: underline;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #718096;
+    }
   </style>
 </head>
 <body>
@@ -225,6 +359,19 @@
     <tbody id="watchlist-body"></tbody>
   </table>
 
+  <!-- News Modal -->
+  <div id="news-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">News</h2>
+        <button class="close-btn" id="close-modal">&times;</button>
+      </div>
+      <div id="news-content">
+        <div class="loading">Loading news...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const form = document.getElementById("stock-form");
     const resultEl = document.getElementById("result");
@@ -245,13 +392,86 @@
             ? Number(row.latest_price).toFixed(2)
             : "-";
           const updated = row.updated_at ? new Date(row.updated_at).toLocaleString() : "-";
-          tr.innerHTML = `<td>${row.symbol}</td><td>${row.email || "-"}</td><td>$${price}</td><td>${updated}</td><td><button class="delete-btn" data-symbol="${row.symbol}">Delete</button></td>`;
+          tr.innerHTML = `<td>${row.symbol}</td><td>${row.email || "-"}</td><td>$${price}</td><td>${updated}</td><td><button class="news-btn" data-symbol="${row.symbol}">News</button><button class="delete-btn" data-symbol="${row.symbol}">Delete</button></td>`;
           watchlistBody.appendChild(tr);
         });
       } catch (err) {
         resultEl.textContent = "Failed to load watchlist: " + err;
       }
     }
+
+    async function deleteFromWatchlist(symbol) {
+      try {
+        const resp = await fetch(`/watchlist/${encodeURIComponent(symbol)}`, {
+          method: "DELETE",
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          resultEl.textContent = "Error deleting: " + (data.error || resp.statusText);
+          return;
+        }
+        resultEl.textContent = "Deleted " + symbol + " from watchlist";
+        loadWatchlist();
+      } catch (err) {
+        resultEl.textContent = "Delete failed: " + err;
+      }
+    }
+
+    async function fetchTickerNews(symbol) {
+      const modal = document.getElementById("news-modal");
+      const modalTitle = document.getElementById("modal-title");
+      const newsContent = document.getElementById("news-content");
+      
+      modal.classList.add("show");
+      modalTitle.textContent = `News for ${symbol}`;
+      newsContent.innerHTML = '<div class="loading">Loading news...</div>';
+      
+      try {
+        const resp = await fetch(`/news/${encodeURIComponent(symbol)}`);
+        const data = await resp.json();
+        
+        if (!resp.ok) {
+          newsContent.innerHTML = `<div class="loading">Error: ${data.error || resp.statusText}</div>`;
+          return;
+        }
+        
+        if (!data.news || data.news.length === 0) {
+          newsContent.innerHTML = '<div class="loading">No news articles found for this ticker.</div>';
+          return;
+        }
+        
+        let html = '';
+        data.news.forEach((article) => {
+          const publishedDate = article.published_utc ? new Date(article.published_utc).toLocaleString() : 'Unknown date';
+          const source = article.source || article.author || 'Unknown source';
+          
+          html += `
+            <div class="news-item">
+              <h3>${article.title || 'Untitled'}</h3>
+              <div class="news-meta">${source} • ${publishedDate}</div>
+              ${article.description ? `<p>${article.description}</p>` : ''}
+              ${article.article_url ? `<a href="${article.article_url}" target="_blank" class="news-link">Read more →</a>` : ''}
+            </div>
+          `;
+        });
+        
+        newsContent.innerHTML = html;
+      } catch (err) {
+        newsContent.innerHTML = `<div class="loading">Failed to load news: ${err}</div>`;
+      }
+    }
+
+    watchlistBody.addEventListener("click", (e) => {
+      if (e.target.classList.contains("delete-btn")) {
+        const symbol = e.target.getAttribute("data-symbol");
+        if (confirm(`Are you sure you want to remove ${symbol} from your watchlist?`)) {
+          deleteFromWatchlist(symbol);
+        }
+      } else if (e.target.classList.contains("news-btn")) {
+        const symbol = e.target.getAttribute("data-symbol");
+        fetchTickerNews(symbol);
+      }
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -274,6 +494,20 @@
         loadWatchlist();
       } catch (err) {
         resultEl.textContent = "Request failed: " + err;
+      }
+    });
+
+    // Modal close handlers
+    const modal = document.getElementById("news-modal");
+    const closeModalBtn = document.getElementById("close-modal");
+    
+    closeModalBtn.addEventListener("click", () => {
+      modal.classList.remove("show");
+    });
+    
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.classList.remove("show");
       }
     });
 
